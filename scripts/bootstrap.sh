@@ -12,7 +12,7 @@ kubectl create namespace argocd
 kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 echo "==> Waiting for ArgoCD pods to be ready (this takes 2-3 mins)..."
-kubectl wait --for=condition=available --timeout=180s deployment/argocd-server -n argocd
+kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
 
 echo "==> Giving ArgoCD server 15s to fully initialize..."
 sleep 15
