@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tenant1-app
+  namespace: argocd
+spec:
+  project: tenant1-project
+  source:
+    repoURL: git@github.com:abhinav-dops/multi-tenant-gitops-platform.git
+    targetRevision: main
+    path: helm/tenant-app
+    helm:
+      valueFiles:
+        - ../../helm/values/tenant1-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tenant1
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
