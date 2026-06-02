@@ -1,3 +1,3 @@
 tenant_name  = "tenant1"
-cpu_limit    = "500m"
-memory_limit = "256Mi"
+cpu_limit    = "1000m"
+memory_limit = "512Mi"
