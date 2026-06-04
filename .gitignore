@@ -9,3 +9,4 @@ terraform.tfstate
 *.pem
 *.key
 .env
+app/api
