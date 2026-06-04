@@ -8,7 +8,7 @@ A production-style internal developer platform built from scratch on Kubernetes,
 
 ## Overview
 
-This platform allows engineering teams to be onboarded as isolated tenants on a shared Kubernetes cluster. Each tenant gets dedicated infrastructure provisioned automatically — namespace, resource quotas, RBAC, and network policies — with their application deployed and managed entirely through Git.
+This platform allows engineering teams to be onboarded as isolated tenants on a shared Kubernetes cluster. Each tenant gets dedicated infrastructure provisioned automatically - namespace, resource quotas, RBAC, and network policies with their application deployed and managed entirely through Git.
 
 A single command onboards a new tenant end-to-end in under 2 minutes.
 
@@ -82,7 +82,7 @@ All application changes flow through Git:
 1. Developer pushes a change
 2. GitHub Actions runs lint, validation, and builds the Docker image
 3. ArgoCD detects the change and syncs the cluster automatically
-4. No manual `kubectl apply` — Git is the single source of truth
+4. No manual `kubectl apply` - Git is the single source of truth
 
 ### One-Command Tenant Onboarding
 
@@ -90,7 +90,7 @@ All application changes flow through Git:
 bash scripts/add-tenant.sh <tenant-name> [cpu-limit] [memory-limit]
 ```
 
-This single command provisions namespace, RBAC, quotas, network policies, Helm values, ArgoCD manifests, commits to Git, and syncs — all automatically.
+This single command provisions namespace, RBAC, quotas, network policies, Helm values, ArgoCD manifests, commits to Git, and syncs all automatically.
 
 ### Full Observability
 
