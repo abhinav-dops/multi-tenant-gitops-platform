@@ -25,7 +25,7 @@ until kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server \
   sleep 10
 done
 
-echo "==> Starting port-forward..."
+echo "==> Starting ArgoCD port-forward..."
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 sleep 10
 
@@ -54,8 +54,62 @@ kubectl rollout restart deployment argocd-repo-server -n argocd
 echo "==> Restoring ingress controller..."
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 
-echo ""
-echo "Restore complete. Everything is back up."
-echo "ArgoCD UI: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+echo "==> Restoring monitoring stack..."
+kubectl create namespace monitoring 2>/dev/null || echo "  monitoring namespace already exists"
 
-chmod +x ~/multi-tenant-gitops-platform/scripts/restore.sh
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+helm repo add grafana https://grafana.github.io/helm-charts 2>/dev/null || true
+helm repo update
+
+helm install prometheus prometheus-community/prometheus \
+  --namespace monitoring \
+  --set alertmanager.enabled=false \
+  --set prometheus-pushgateway.enabled=false \
+  --set server.persistentVolume.enabled=false 2>/dev/null || echo "  Prometheus already installed"
+
+helm install grafana grafana/grafana \
+  --namespace monitoring \
+  --set adminPassword=admin123 \
+  --set persistence.enabled=false \
+  --set service.type=ClusterIP 2>/dev/null || echo "  Grafana already installed"
+
+helm install loki grafana/loki \
+  --namespace monitoring \
+  --set loki.auth_enabled=false \
+  --set loki.useTestSchema=true \
+  --set deploymentMode=SingleBinary \
+  --set singleBinary.replicas=1 \
+  --set read.replicas=0 \
+  --set write.replicas=0 \
+  --set backend.replicas=0 \
+  --set chunksCache.enabled=false \
+  --set resultsCache.enabled=false \
+  --set loki.commonConfig.replication_factor=1 \
+  --set loki.storage.type=filesystem 2>/dev/null || echo "  Loki already installed"
+
+helm install promtail grafana/promtail \
+  --namespace monitoring \
+  --set config.clients[0].url=http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push 2>/dev/null || echo "  Promtail already installed"
+
+echo "==> Waiting for monitoring pods to be ready..."
+kubectl wait --for=condition=ready pod \
+  -l app.kubernetes.io/name=grafana \
+  -n monitoring \
+  --timeout=120s
+
+echo "==> Starting monitoring port-forwards..."
+kubectl port-forward svc/grafana -n monitoring 3000:80 &
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8888:80 &
+
+echo ""
+echo "=========================================="
+echo "  Restore complete. Everything is back up."
+echo ""
+echo "  ArgoCD:  https://localhost:8080"
+echo "           admin / $ARGOCD_PASSWORD"
+echo ""
+echo "  Grafana: http://localhost:3000"
+echo "           admin / admin123"
+echo ""
+echo "  Nginx:   http://tenant1.app.local:8888"
+echo "=========================================="
