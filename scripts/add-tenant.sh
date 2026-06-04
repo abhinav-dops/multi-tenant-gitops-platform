@@ -13,7 +13,22 @@ fi
 
 echo "==> Onboarding tenant: $TENANT_NAME"
 
+# ── Make sure ArgoCD port-forward is alive ─────────────────────────────────
+if ! curl -sk --max-time 2 https://localhost:8080 > /dev/null 2>&1; then
+  echo "==> ArgoCD port-forward not detected, starting it..."
+  kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+  sleep 8
+fi
+
+# ── Make sure we're logged into ArgoCD ────────────────────────────────────
+echo "==> Logging into ArgoCD..."
+ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d)
+argocd login localhost:8080 --username admin --password "$ARGOCD_PASSWORD" --insecure
+
+# ── Step 1: Terraform (isolated workspace per tenant) ─────────────────────
 echo "==> Creating Terraform vars..."
+mkdir -p terraform/tenants
 cat > terraform/tenants/${TENANT_NAME}.tfvars << TFEOF
 tenant_name  = "${TENANT_NAME}"
 cpu_limit    = "${CPU_LIMIT}"
@@ -26,6 +41,7 @@ terraform workspace new ${TENANT_NAME} 2>/dev/null || terraform workspace select
 terraform apply -var-file=tenants/${TENANT_NAME}.tfvars -auto-approve
 cd ..
 
+# ── Step 2: Helm values ────────────────────────────────────────────────────
 echo "==> Creating Helm values..."
 cat > helm/values/${TENANT_NAME}-values.yaml << HELMEOF
 tenant: ${TENANT_NAME}
@@ -59,6 +75,7 @@ env:
     value: "${TENANT_NAME}"
 HELMEOF
 
+# ── Step 3: ArgoCD project ─────────────────────────────────────────────────
 echo "==> Creating ArgoCD project..."
 cat > argocd/projects/${TENANT_NAME}-project.yaml << ARGOEOF
 apiVersion: argoproj.io/v1alpha1
@@ -78,6 +95,7 @@ spec:
       kind: Namespace
 ARGOEOF
 
+# ── Step 4: ArgoCD application ─────────────────────────────────────────────
 echo "==> Creating ArgoCD application..."
 cat > argocd/applications/${TENANT_NAME}-app.yaml << ARGOEOF
 apiVersion: argoproj.io/v1alpha1
@@ -105,20 +123,24 @@ spec:
       - CreateNamespace=false
 ARGOEOF
 
+# ── Step 5: Apply ArgoCD manifests ─────────────────────────────────────────
 echo "==> Applying ArgoCD manifests..."
 kubectl apply -f argocd/projects/${TENANT_NAME}-project.yaml
 kubectl apply -f argocd/applications/${TENANT_NAME}-app.yaml
 
+# ── Step 6: Commit and push ────────────────────────────────────────────────
 echo "==> Pushing to Git..."
-git add helm/values/${TENANT_NAME}-values.yaml \
-        argocd/projects/${TENANT_NAME}-project.yaml \
-        argocd/applications/${TENANT_NAME}-app.yaml \
-        terraform/tenants/${TENANT_NAME}.tfvars
+git add \
+  helm/values/${TENANT_NAME}-values.yaml \
+  argocd/projects/${TENANT_NAME}-project.yaml \
+  argocd/applications/${TENANT_NAME}-app.yaml \
+  terraform/tenants/${TENANT_NAME}.tfvars
 git commit -m "feat: onboard ${TENANT_NAME}"
 git push
 
+# ── Step 7: Sync ArgoCD ────────────────────────────────────────────────────
 echo "==> Syncing ArgoCD..."
-argocd app sync ${TENANT_NAME}-app
+argocd app sync ${TENANT_NAME}-app --timeout 120
 
 echo ""
 echo "=========================================="
@@ -126,5 +148,3 @@ echo "  Tenant ${TENANT_NAME} onboarded!"
 echo "  App URL: http://${TENANT_NAME}.app.local:8888"
 echo "  ArgoCD:  https://localhost:8080"
 echo "=========================================="
-
-chmod +x ~/multi-tenant-gitops-platform/scripts/add-tenant.sh
