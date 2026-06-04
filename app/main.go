@@ -32,7 +32,7 @@ func main() {
 		json.NewEncoder(w).Encode(Response{
 			Message: "GitOps Platform API",
 			Tenant:  tenant,
-			Version: "1.0.0",
+			Version: "2.0.0",
 		})
 	}))
 
