@@ -7,7 +7,10 @@ metadata:
   labels:
     app: {{ .Release.Name }}
     tenant: {{ .Values.tenant }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: nginx
   rules:
     - host: {{ .Values.ingress.host }}
       http:
@@ -19,4 +22,4 @@ spec:
                 name: {{ .Release.Name }}-svc
                 port:
                   number: {{ .Values.service.port }}
-{{- end }}          
+{{- end }}    
