@@ -16,6 +16,7 @@ A single command onboards a new tenant end-to-end in under 2 minutes.
 
 ## Architecture
 
+```
 Developer → GitHub push
                 │
                 ▼
@@ -43,6 +44,7 @@ Developer → GitHub push
 
   Observability (monitoring ns)
   Prometheus · Loki · Grafana
+```
 
 ---
 
@@ -67,15 +69,15 @@ Developer → GitHub push
 ## Key Features
 
 ### Multi-Tenant Isolation
+
 Each tenant is provisioned with:
 - Dedicated Kubernetes namespace
 - ResourceQuota — hard CPU and memory limits per tenant, preventing noisy-neighbour issues
 - NetworkPolicy — tenant pods can only communicate within their own namespace
 - RBAC — Role and RoleBinding scoped to the tenant namespace only
 
-Tenants are completely isolated from each other at the network, compute, and permissions level.
-
 ### GitOps Workflow
+
 All application changes flow through Git:
 1. Developer pushes a change
 2. GitHub Actions runs lint, validation, and builds the Docker image
@@ -83,22 +85,21 @@ All application changes flow through Git:
 4. No manual `kubectl apply` — Git is the single source of truth
 
 ### One-Command Tenant Onboarding
+
 ```bash
 bash scripts/add-tenant.sh <tenant-name> [cpu-limit] [memory-limit]
 ```
-This single command:
-- Creates a Terraform workspace and provisions namespace, RBAC, quotas, and network policies
-- Generates a Helm values file for the tenant
-- Creates ArgoCD AppProject and Application manifests
-- Commits and pushes everything to Git
-- Triggers an ArgoCD sync
+
+This single command provisions namespace, RBAC, quotas, network policies, Helm values, ArgoCD manifests, commits to Git, and syncs — all automatically.
 
 ### Full Observability
+
 - **Prometheus** — scrapes metrics from all tenant namespaces
 - **Loki + Promtail** — aggregates container logs, queryable by namespace label
 - **Grafana** — unified dashboard showing per-namespace resource usage and live log streams
 
 ### CI Pipeline
+
 Every push to `main` runs:
 1. Helm chart linting
 2. Kubernetes manifest validation
@@ -109,6 +110,7 @@ Every push to `main` runs:
 
 ## Project Structure
 
+```
 .
 ├── .github/
 │   └── workflows/
@@ -134,12 +136,13 @@ Every push to `main` runs:
 │   ├── restore.sh               # Restore after cluster deletion
 │   └── add-tenant.sh            # Tenant onboarding automation
 └── terraform/
-├── main.tf                  # Root config, calls all modules
-├── modules/
-│   ├── namespace/           # Namespace + ResourceQuota
-│   ├── rbac/                # Role + RoleBinding
-│   └── network-policy/      # NetworkPolicy
-└── tenants/                 # Per-tenant tfvars
+    ├── main.tf                  # Root config, calls all modules
+    ├── modules/
+    │   ├── namespace/           # Namespace + ResourceQuota
+    │   ├── rbac/                # Role + RoleBinding
+    │   └── network-policy/      # NetworkPolicy
+    └── tenants/                 # Per-tenant tfvars
+```
 
 ---
 
@@ -218,4 +221,3 @@ One base chart, many tenant configurations. Adding a tenant requires only a new 
 ## Author
 
 Abhinav Singh — [github.com/abhinav-dops](https://github.com/abhinav-dops)
-EOF
