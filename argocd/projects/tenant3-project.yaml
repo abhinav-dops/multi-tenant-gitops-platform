@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenant3-project
+  namespace: argocd
+spec:
+  description: Project for tenant3
+  sourceRepos:
+    - git@github.com:abhinav-dops/multi-tenant-gitops-platform.git
+  destinations:
+    - namespace: tenant3
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
