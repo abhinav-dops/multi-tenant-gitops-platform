@@ -16,6 +16,15 @@ resource "kubernetes_network_policy" "tenant_isolation" {
         }
       }
     }
+    ingress {
+      from {
+        namespace_selector {
+          match_labels = {
+            "kubernetes.io/metadata.name" = "ingress-nginx"
+          }
+        }
+      }
+    }
     egress {
       to {
         namespace_selector {
