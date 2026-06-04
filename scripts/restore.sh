@@ -82,6 +82,8 @@ ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
 argocd login localhost:8080 --username admin --password "$ARGOCD_PASSWORD" --insecure
 
 echo "==> Re-adding GitHub SSH key..."
+echo "    Waiting 20s for cluster DNS to settle..."
+sleep 20
 argocd repo add git@github.com:abhinav-dops/multi-tenant-gitops-platform.git \
   --ssh-private-key-path ~/.ssh/id_ed25519 \
   --insecure-skip-server-verification
