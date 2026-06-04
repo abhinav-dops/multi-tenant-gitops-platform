@@ -3,14 +3,14 @@ tenant: tenant1
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: ghcr.io/abhinav-dops/multi-tenant-gitops-platform/gitops-api
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP
   port: 80
-  targetPort: 80
+  targetPort: 8080
 
 ingress:
   enabled: true
@@ -23,3 +23,8 @@ resources:
   requests:
     cpu: 100m
     memory: 64Mi
+
+env:
+  - name: TENANT_NAME
+    value: "tenant1"
+    
