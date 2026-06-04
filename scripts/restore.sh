@@ -33,7 +33,6 @@ wait_for_port() {
 }
 
 kill_port_forwards() {
-  # Kill any stale port-forwards from a previous run
   pkill -f "kubectl port-forward" 2>/dev/null || true
   sleep 2
 }

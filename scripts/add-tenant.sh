@@ -13,14 +13,14 @@ fi
 
 echo "==> Onboarding tenant: $TENANT_NAME"
 
-# ── Make sure ArgoCD port-forward is alive ─────────────────────────────────
+# ── Making sure ArgoCD port-forward is alive ─────────────────────────────────
 if ! curl -sk --max-time 2 https://localhost:8080 > /dev/null 2>&1; then
   echo "==> ArgoCD port-forward not detected, starting it..."
   kubectl port-forward svc/argocd-server -n argocd 8080:443 &
   sleep 8
 fi
 
-# ── Make sure we're logged into ArgoCD ────────────────────────────────────
+# ── Making sure we're logged into ArgoCD ────────────────────────────────────
 echo "==> Logging into ArgoCD..."
 ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
