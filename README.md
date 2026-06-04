@@ -2,7 +2,7 @@
 
 A production-style internal developer platform built from scratch on Kubernetes, implementing GitOps workflows, infrastructure-as-code, multi-tenant isolation, and full-stack observability.
 
-> Built as a portfolio project to demonstrate platform engineering skills: Kubernetes, GitOps, Terraform, Helm, CI/CD, and observability.
+> Built as a portfolio project to demonstrate skills: Kubernetes, GitOps, Terraform, Helm, CI/CD, and observability.
 
 ---
 
