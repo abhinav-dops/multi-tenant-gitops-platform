@@ -33,6 +33,15 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Render Helm templates for scanning
+        run: |
+          helm template tenant1 helm/tenant-app \
+            -f helm/values/tenant1-values.yaml \
+            --validate=false > /tmp/rendered-manifests.yaml
+
       - name: Checkov - Scan Terraform
         run: |
           checkov -d terraform/ \
@@ -42,17 +51,6 @@ jobs:
             --output cli \
             --quiet
         continue-on-error: false
-
-      - name: Render Helm templates for scanning
-        run: |
-          helm template tenant1 helm/tenant-app \
-            -f helm/values/tenant1-values.yaml \
-            --validate=false > /tmp/rendered-manifests.yaml
-        env:
-          HELM_PLUGINS: ""
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
 
       - name: Checkov - Scan Kubernetes Manifests
         run: |
@@ -132,7 +130,25 @@ jobs:
             type=sha,prefix=,format=short
             type=raw,value=latest
 
-      - name: Build and push
+      - name: Build image (no push yet)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/gitops-api:latest
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL
+
+      - name: Push image (only if Trivy passed)
         uses: docker/build-push-action@v5
         with:
           context: ./app
