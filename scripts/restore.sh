@@ -162,6 +162,22 @@ helm upgrade --install grafana grafana/grafana \
   --wait --timeout 3m
 
 # ─────────────────────────────────────────────
+# 5.5 Kyverno — policy engine
+# ─────────────────────────────────────────────
+echo "==> Installing Kyverno..."
+helm repo add kyverno https://kyverno.github.io/kyverno/ 2>/dev/null || true
+helm repo update
+
+helm upgrade --install kyverno kyverno/kyverno \
+  --namespace kyverno \
+  --create-namespace \
+  --wait --timeout 5m
+
+echo "  --> Applying Kyverno policies..."
+kubectl apply -f kyverno/policies/
+echo "  --> Kyverno ready"
+
+# ─────────────────────────────────────────────
 # 6. Sync ArgoCD apps (after infra + ingress are up)
 # ─────────────────────────────────────────────
 echo "==> Syncing ArgoCD applications..."

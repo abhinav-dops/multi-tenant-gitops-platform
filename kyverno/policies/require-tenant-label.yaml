@@ -1,0 +1,26 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-tenant-label
+  annotations:
+    policies.kyverno.io/title: Require Tenant Label
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      All pods must have a tenant label for ownership tracking
+      and observability filtering in a multi-tenant cluster.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-tenant-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Pod must have a 'tenant' label."
+        pattern:
+          metadata:
+            labels:
+              tenant: "?*"
