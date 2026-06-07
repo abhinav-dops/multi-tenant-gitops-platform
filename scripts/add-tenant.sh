@@ -43,6 +43,14 @@ cd ..
 
 # ── Step 2: Helm values ────────────────────────────────────────────────────
 echo "==> Creating Helm values..."
+
+# Get latest SHA tag from registry
+LATEST_SHA=$(curl -s "https://ghcr.io/v2/abhinav-dops/multi-tenant-gitops-platform/gitops-api/tags/list" \
+  -H "Authorization: Bearer $(echo -n "$GITHUB_TOKEN" | base64)" \
+  2>/dev/null | grep -o '"[a-f0-9]\{7\}"' | head -1 | tr -d '"' || echo "latest")
+
+echo "  --> Using image tag: ${LATEST_SHA}"
+
 cat > helm/values/${TENANT_NAME}-values.yaml << HELMEOF
 tenant: ${TENANT_NAME}
 
@@ -50,7 +58,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/abhinav-dops/multi-tenant-gitops-platform/gitops-api
-  tag: latest
+  tag: ${LATEST_SHA}
   pullPolicy: Always
 
 service:

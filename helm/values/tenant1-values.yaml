@@ -27,4 +27,3 @@ resources:
 env:
   - name: TENANT_NAME
     value: "tenant1"
-    

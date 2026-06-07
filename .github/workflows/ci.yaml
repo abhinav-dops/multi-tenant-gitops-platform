@@ -85,7 +85,7 @@ jobs:
           tar -xzf kyverno-cli_v1.12.0_linux_x86_64.tar.gz -C /tmp/kyverno-cli
           sudo mv /tmp/kyverno-cli/kyverno /usr/local/bin/
           kyverno version
-          
+
       - name: Run Kyverno policy checks
         run: |
           kyverno apply kyverno/policies/ \
@@ -197,3 +197,17 @@ jobs:
           context: ./app
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          
+      - name: Update image tags in values files
+        if: github.ref == 'refs/heads/main'
+        run: |
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          sed -i "s|tag:.*|tag: ${SHA}|g" helm/values/tenant1-values.yaml
+          sed -i "s|tag:.*|tag: ${SHA}|g" helm/values/tenant2-values.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/values/tenant1-values.yaml helm/values/tenant2-values.yaml
+          git diff --staged --quiet || git commit -m "ci: update image tag to ${SHA} [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
