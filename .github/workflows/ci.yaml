@@ -147,6 +147,20 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL
+          
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/gitops-api:latest
+          format: cyclonedx
+          output: sbom.json
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.json
+          retention-days: 30
 
       - name: Push image (only if Trivy passed)
         uses: docker/build-push-action@v5
