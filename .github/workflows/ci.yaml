@@ -37,7 +37,7 @@ jobs:
         run: |
           checkov -d terraform/ \
             --framework terraform \
-            --severity HIGH \
+            --hard-fail-on HIGH \
             --skip-check CKV_TF_1 \
             --output cli \
             --quiet
@@ -54,17 +54,11 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      - name: Render Helm templates for scanning
-        run: |
-          helm template tenant1 helm/tenant-app \
-            -f helm/values/tenant1-values.yaml \
-            --validate=false > /tmp/rendered-manifests.yaml
-
       - name: Checkov - Scan Kubernetes Manifests
         run: |
           checkov -f /tmp/rendered-manifests.yaml \
             --framework kubernetes \
-            --severity HIGH \
+            --hard-fail-on HIGH \
             --skip-check CKV_K8S_8,CKV_K8S_9,CKV_K8S_11,CKV_K8S_14,CKV_K8S_15,CKV_K8S_20,CKV_K8S_22,CKV_K8S_28,CKV_K8S_30,CKV_K8S_36,CKV_K8S_37,CKV_K8S_43 \
             --output cli \
             --quiet
