@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/abhinav-dops/multi-tenant-gitops-platform/gitops-api
-  tag: 5b0f71a
+  tag: f3acf48
   pullPolicy: Always
 
 service:
