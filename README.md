@@ -1,14 +1,14 @@
 # Multi-Tenant GitOps Platform
 
-A production-style internal developer platform built from scratch on Kubernetes, implementing GitOps workflows, infrastructure-as-code, multi-tenant isolation, and full-stack observability.
+A production-style internal developer platform built from scratch on Kubernetes, implementing GitOps workflows, infrastructure-as-code, multi-tenant isolation, full-stack observability, and a DevSecOps security pipeline.
 
-> Built as a portfolio project to demonstrate skills: Kubernetes, GitOps, Terraform, Helm, CI/CD, and observability.
+> Built as a portfolio project to demonstrate skills: Kubernetes, GitOps, Terraform, Helm, CI/CD, observability, and DevSecOps.
 
 ---
 
 ## Overview
 
-This platform allows engineering teams to be onboarded as isolated tenants on a shared Kubernetes cluster. Each tenant gets dedicated infrastructure provisioned automatically - namespace, resource quotas, RBAC, and network policies with their application deployed and managed entirely through Git.
+This platform allows engineering teams to be onboarded as isolated tenants on a shared Kubernetes cluster. Each tenant gets dedicated infrastructure provisioned automatically — namespace, resource quotas, RBAC, and network policies — with their application deployed and managed entirely through Git.
 
 A single command onboards a new tenant end-to-end in under 2 minutes.
 
@@ -20,17 +20,31 @@ A single command onboards a new tenant end-to-end in under 2 minutes.
 Developer → GitHub push
                 │
                 ▼
-    ┌─── GitHub Actions CI ───┐
-    │  Helm lint              │
-    │  Manifest validate      │
-    │  Terraform validate     │
-    │  Docker build + push ───┼──► ghcr.io
-    └─────────────────────────┘
+    ┌─────── GitHub Actions CI ────────────────┐
+    │                                          │
+    │  [Security Gate 1] Gitleaks              │
+    │         │                                │
+    │  [Security Gate 2] Checkov (SAST)        │
+    │         │                                │
+    │  [Security Gate 3] Kyverno Policy Check  │
+    │         │                                │
+    │  Helm lint + Manifest + Terraform validate│
+    │         │                                │
+    │  Docker build                            │
+    │         │                                │
+    │  [Security Gate 4] Trivy scan            │
+    │         │                                │
+    │  SBOM generation (CycloneDX)             │
+    │         │                                │
+    │  Docker push → ghcr.io                   │
+    │         │                                │
+    │  SHA tag commit back to values files     │
+    └──────────────────────────────────────────┘
                 │
                 ▼
             ArgoCD
        (watches Git repo,
-        syncs on every push)
+        syncs on SHA tag change)
                 │
         ┌───────┴────────┐
         ▼                ▼
@@ -44,6 +58,9 @@ Developer → GitHub push
 
   Observability (monitoring ns)
   Prometheus · Loki · Grafana
+
+  Policy Enforcement (kyverno ns)
+  ClusterPolicy: no-latest-tag · resource-limits · tenant-label
 ```
 
 ---
@@ -62,6 +79,11 @@ Developer → GitHub push
 | Dashboards | Grafana |
 | CI/CD | GitHub Actions |
 | Container Registry | GitHub Container Registry (ghcr.io) |
+| Secret Scanning | Gitleaks |
+| SAST | Checkov |
+| Container Scanning | Trivy |
+| SBOM | Trivy (CycloneDX format) |
+| Policy Enforcement | Kyverno |
 | Sample application | Go HTTP API |
 
 ---
@@ -80,9 +102,36 @@ Each tenant is provisioned with:
 
 All application changes flow through Git:
 1. Developer pushes a change
-2. GitHub Actions runs lint, validation, and builds the Docker image
-3. ArgoCD detects the change and syncs the cluster automatically
-4. No manual `kubectl apply` - Git is the single source of truth
+2. GitHub Actions runs the full security and validation pipeline
+3. Docker image is built, scanned, and pushed with a pinned SHA tag
+4. CI commits the SHA tag back to the Helm values files
+5. ArgoCD detects the values change and syncs the cluster automatically
+6. No manual `kubectl apply` — Git is the single source of truth
+
+### DevSecOps Pipeline
+
+A 6-stage security pipeline runs on every push before any image reaches the cluster:
+
+| Stage | Tool | What it catches |
+|-------|------|-----------------|
+| Secret scanning | Gitleaks | API keys, tokens, passwords committed to git |
+| SAST | Checkov | Terraform misconfigurations, K8s manifest security issues |
+| Policy validation | Kyverno CLI | Manifests violating cluster admission policies |
+| Container scanning | Trivy | CVEs in the Docker image and OS packages |
+| SBOM generation | Trivy (CycloneDX) | Full software bill of materials attached to every build |
+| Image tagging | GitHub Actions | SHA-pinned tags replacing mutable `latest` |
+
+Trivy caught a real CVE during development — `CVE-2025-68121` (CRITICAL) in Go stdlib `crypto/tls` on Go 1.22. The pipeline blocked the push; the fix was upgrading to Go 1.24 where it is patched.
+
+### Kyverno Policy Enforcement
+
+Three ClusterPolicies enforce security standards at admission:
+
+- `disallow-latest-tag` — rejects pods using mutable `:latest` image tags
+- `require-resource-limits` — rejects pods without CPU and memory limits
+- `require-tenant-label` — rejects pods missing a `tenant` label (required for observability)
+
+Policies run in Audit mode — violations are reported without blocking, matching how policy rollout works in production before switching to Enforce mode.
 
 ### One-Command Tenant Onboarding
 
@@ -90,7 +139,7 @@ All application changes flow through Git:
 bash scripts/add-tenant.sh <tenant-name> [cpu-limit] [memory-limit]
 ```
 
-This single command provisions namespace, RBAC, quotas, network policies, Helm values, ArgoCD manifests, commits to Git, and syncs all automatically.
+This single command provisions namespace, RBAC, quotas, network policies, Helm values, ArgoCD manifests, commits to Git, and syncs — all automatically in under 2 minutes.
 
 ### Full Observability
 
@@ -100,11 +149,16 @@ This single command provisions namespace, RBAC, quotas, network policies, Helm v
 
 ### CI Pipeline
 
-Every push to `main` runs:
-1. Helm chart linting
-2. Kubernetes manifest validation
-3. Terraform configuration validation
-4. Docker image build and push to ghcr.io (only after all checks pass)
+Every push to `main` runs in order:
+1. Gitleaks secret scan (blocks all other jobs if secrets found)
+2. Checkov SAST — Terraform + rendered K8s manifests
+3. Kyverno CLI policy check against rendered manifests
+4. Helm lint, manifest validation, Terraform validate (parallel)
+5. Docker build
+6. Trivy container scan (blocks push on CRITICAL CVEs with available fixes)
+7. SBOM generation — attached as artifact to every build
+8. Docker push to ghcr.io
+9. SHA tag committed back to Helm values files
 
 ---
 
@@ -114,7 +168,7 @@ Every push to `main` runs:
 .
 ├── .github/
 │   └── workflows/
-│       └── ci.yaml              # CI pipeline
+│       └── ci.yaml              # CI + DevSecOps pipeline
 ├── app/
 │   ├── main.go                  # Go HTTP API
 │   ├── go.mod
@@ -128,12 +182,17 @@ Every push to `main` runs:
 │   │       ├── deployment.yaml
 │   │       ├── service.yaml
 │   │       └── ingress.yaml
-│   └── values/                  # Per-tenant values files
+│   └── values/                  # Per-tenant values files (SHA tag auto-updated by CI)
 ├── k8s/
 │   └── monitoring/              # Prometheus + Grafana datasource config
+├── kyverno/
+│   └── policies/                # ClusterPolicy definitions
+│       ├── disallow-latest-tag.yaml
+│       ├── require-resource-limits.yaml
+│       └── require-tenant-label.yaml
 ├── scripts/
 │   ├── bootstrap.sh             # Bootstrap cluster from scratch
-│   ├── restore.sh               # Restore after cluster deletion
+│   ├── restore.sh               # Restore after cluster deletion (includes Kyverno)
 │   └── add-tenant.sh            # Tenant onboarding automation
 └── terraform/
     ├── main.tf                  # Root config, calls all modules
@@ -215,6 +274,12 @@ ArgoCD provides drift detection and self-healing — if someone manually modifie
 
 **Why separate Helm values per tenant?**
 One base chart, many tenant configurations. Adding a tenant requires only a new values file — no changes to the chart itself. This scales cleanly to N tenants.
+
+**Why Kyverno in Audit mode?**
+Policies are introduced in Audit mode to report violations without blocking deployments. This mirrors production practice — validate coverage before switching to Enforce mode to avoid breaking running workloads.
+
+**Why SHA-pinned image tags?**
+The `latest` tag is mutable — the same tag can point to a different image digest after every build, making rollbacks unreliable and ArgoCD diffs meaningless. CI commits the short SHA back to the Helm values files after every push, so every ArgoCD sync is traceable to an exact commit.
 
 ---
 
