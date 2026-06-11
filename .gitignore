@@ -3,14 +3,22 @@ terraform/.terraform/
 terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
-terraform.tfstate
+terraform/terraform.tfstate.d/
 
 # Secrets
 *.pem
 *.key
 .env
+
+# Build artifacts
 app/api
-app/api
-terraform/terraform.tfstate.d/
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
+
+# OS / editor
+.DS_Store
+.vscode/
+*.swp
+
+# Misc
+*.log
+sbom.json
+kyverno-cli_*.tar.gz
